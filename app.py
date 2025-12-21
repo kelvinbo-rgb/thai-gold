@@ -1,0 +1,273 @@
+import streamlit as st
+import pandas as pd
+from utils import ThaiGoldScraper, GoldConverter
+import time
+
+# Page Config
+st.set_page_config(page_title="Thailand Gold - 泰国黄金", layout="wide")
+
+# Localization
+LANGS = {
+    "TH": {
+        "title": "ราคาทองคำประเทศไทย",
+        "bullion": "ทองคำแท่ง (96.5%)",
+        "ornament": "ทองรูปพรรณ (96.5%)",
+        "buy": "รับซื้อ",
+        "sell": "ขายออก",
+        "converter": "เครื่องคิดเลขราคาทอง",
+        "weight_baht": "น้ำหนัก (บาท)",
+        "gamnuy": "ค่ากำเหน็จ (บาท)",
+        "total": "ราคาสุทธิ",
+        "last_update": "อัพเดทล่าสุด",
+        "exchange_rates": "อัตราแลกเปลี่ยน",
+        "rmb_thb": "เงินหยวน/บาท (RMB/THB)",
+        "gold_spot": "ราคาสปอต (Gold Spot)",
+        "thb_usd": "ดอลลาร์/บาท (THB/USD)",
+        "unit_converter": "เครื่องมือแปลงหน่วย",
+        "baht": "บาท (Baht)",
+        "gram": "กรัม (Gram)",
+        "ounce": "ออนซ์ (Ounce)",
+        "main_title": "ราคาทองคำประเทศไทย (Thai Gold Live)",
+        "charts": "กราฟราคาย้อนหลัง",
+        "chart_periods": ["1 สัปดาห์", "1 เดือน", "1 ปี", "3 ปี", "ทั้งหมด"],
+        "chart_bullion": "แนวโน้มราคาทองคำแท่ง",
+        "chart_ornament": "แนวโน้มราคาทองรูปพรรณ",
+        "alerts": "แจ้งเตือนราคา",
+        "alert_set": "ตั้งค่าการแจ้งเตือน",
+        "sponsor_title": "☕ สนับสนุนผู้พัฒนา",
+        "sponsor_desc": "หากคุณชอบแนวคิดนี้ คุณสามารถสนับสนุนได้!",
+        "sponsor_alipay": "Alipay (จีน)",
+        "sponsor_promptpay": "PromptPay (ไทย)",
+        "sponsor_msg": "ขอให้โชคดีทุกความฝันครับ"
+    },
+    "CN": {
+        "title": "泰国黄金实时报价",
+        "bullion": "金条 (96.5%)",
+        "ornament": "金饰/首饰",
+        "buy": "买入价",
+        "sell": "卖出价",
+        "converter": "金价计算器",
+        "weight_baht": "重量 (泰铢单位 'Baht')",
+        "gamnuy": "加工费 (Gamnuy)",
+        "total": "总价 (泰铢)",
+        "last_update": "最后更新",
+        "exchange_rates": "汇率监控",
+        "rmb_thb": "人民币/泰铢 (RMB/THB)",
+        "gold_spot": "国际金价 (Gold Spot)",
+        "thb_usd": "泰铢/美元 (THB/USD)",
+        "unit_converter": "重量单位换算",
+        "baht": "泰铢单位 (Baht)",
+        "gram": "克 (Gram)",
+        "ounce": "盎司 (Ounce)",
+        "main_title": "泰国黄金 (Thai Gold Live)",
+        "charts": "历史价格走势",
+        "chart_periods": ["一周", "一月", "一年", "三年", "全部"],
+        "chart_bullion": "金条价格趋势",
+        "chart_ornament": "金饰价格趋势",
+        "alerts": "价格预警",
+        "alert_set": "设置预警",
+        "sponsor_title": "☕ 赞助作者",
+        "sponsor_desc": "如果您的思路多了一点提示，请给我一点赞助，我会更有动力去更新和分享。",
+        "sponsor_alipay": "中国支付宝",
+        "sponsor_promptpay": "泰国收款码",
+        "sponsor_msg": "祝终有一日你我梦想成真"
+    },
+    "EN": {
+        "title": "Thai Gold Real-time",
+        "bullion": "Gold Bullion (96.5%)",
+        "ornament": "Ornaments",
+        "buy": "Buy",
+        "sell": "Sell",
+        "converter": "Gold Calculator",
+        "weight_baht": "Weight (Baht)",
+        "gamnuy": "Processing Fee (Gamnuy)",
+        "total": "Total (THB)",
+        "last_update": "Last Update",
+        "exchange_rates": "Exchange Rates",
+        "rmb_thb": "RMB/THB",
+        "gold_spot": "Gold Spot (XAU)",
+        "thb_usd": "THB/USD",
+        "unit_converter": "Unit Converter",
+        "baht": "Baht",
+        "gram": "Gram",
+        "ounce": "Ounce",
+        "main_title": "Thai Gold Live",
+        "charts": "Price Trends",
+        "chart_periods": ["1W", "1M", "1Y", "3Y", "Max"],
+        "chart_bullion": "Bullion Trend",
+        "chart_ornament": "Ornament Trend",
+        "alerts": "Price Alerts",
+        "alert_set": "Set Alert",
+        "sponsor_title": "☕ Support Creator",
+        "sponsor_desc": "If you find this useful and want to support continued development.",
+        "sponsor_alipay": "Alipay (CN)",
+        "sponsor_promptpay": "PromptPay (TH)",
+        "sponsor_msg": "May your dreams come true."
+    }
+}
+
+# Sidebar - Language Selection
+lang_code = st.sidebar.selectbox("Language / 语言 / ภาษา", ["CN", "TH", "EN"])
+t = LANGS[lang_code]
+
+# --- 0. MAIN HEADER ---
+st.markdown(f"""
+<div style="text-align: center; padding: 10px; border-bottom: 2px solid #ffd700; margin-bottom: 20px;">
+    <h1 style="color: #d4af37; margin: 0;">🏆 {t['main_title']}</h1>
+    <p style="color: #888; margin: 0; font-size: 0.9em;">Real-time Gold & Currency Monitor</p>
+</div>
+""", unsafe_allow_html=True)
+
+# st.title(f"💰 {t['title']}") # Removed old title
+
+# --- 1. EXCHANGE RATES - TOP BAR ---
+@st.cache_data(ttl=600)
+def fetch_ex_rates():
+    return ThaiGoldScraper.get_superrich_rates()
+
+ex_rates = fetch_ex_rates()
+
+@st.cache_data(ttl=300)
+def fetch_gold_data():
+    data = ThaiGoldScraper.get_latest_prices()
+    if data:
+        from utils import DataManager
+        DataManager.save_snapshot(data)
+    return data
+
+prices = fetch_gold_data()
+
+st.subheader(f"🌍 {t['exchange_rates']}")
+rate_col1, rate_col2, rate_col3 = st.columns(3)
+
+with rate_col1:
+    # RMB/THB first, no SuperRich labels
+    st.metric(t['rmb_thb'], f"{ex_rates['buy']:.4f}")
+with rate_col2:
+    # Display Thai Bullion Sell instead of Gold Spot
+    val = f"{prices['bullion_sell']:,}" if prices else "--"
+    st.metric(f"{t['bullion']} (Sell)", val)
+with rate_col3:
+    # THB/USD cleaned up
+    st.metric(t['thb_usd'], "34.50")
+
+st.divider()
+
+# --- 2. REAL-TIME PRICES & INTEGRATED CALCULATOR ---
+st.subheader(f"📊 {t['bullion']} & {t['ornament']}")
+
+if prices:
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.info(f"🏆 {t['bullion']}")
+        st.metric(label=t['sell'], value=f"{prices['bullion_sell']:,} THB")
+        st.metric(label=t['buy'], value=f"{prices['bullion_buy']:,} THB")
+        
+        # Integrated Calculator for Bullion
+        st.markdown(f"**🧮 {t['converter']} (Bullion)**")
+        b_weight = st.number_input(f"{t['weight_baht']}", min_value=0.0, value=1.0, step=0.01, key="b_weight")
+        b_gamnuy = st.number_input(f"{t['gamnuy']}", min_value=0, value=100, key="b_gamnuy")
+        b_total = (b_weight * prices['bullion_sell']) + b_gamnuy
+        st.write(f"👉 **{b_total:,.2f} THB**")
+        
+    with col2:
+        st.warning(f"💍 {t['ornament']}")
+        st.metric(label=t['sell'], value=f"{prices['ornament_sell']:,} THB")
+        st.metric(label=t['buy'], value=f"{prices['tax_base']:,} THB")
+        
+        # Integrated Calculator for Ornaments
+        st.markdown(f"**🧮 {t['converter']} (Ornament)**")
+        o_weight = st.number_input(f"{t['weight_baht']}", min_value=0.0, value=1.0, step=0.01, key="o_weight")
+        o_gamnuy = st.number_input(f"{t['gamnuy']}", min_value=0, value=500, key="o_gamnuy")
+        o_total = (o_weight * prices['ornament_sell']) + o_gamnuy
+        st.write(f"👉 **{o_total:,.2f} THB**")
+    
+    st.caption(f"🕒 {t['last_update']}: {prices['update_time']}")
+else:
+    st.error("Failed to fetch prices.")
+
+# --- 3. CHARTS WITH PERIOD SELECTOR ---
+st.divider()
+st.subheader(f"📈 {t['charts']}")
+
+period_map = {"1W": "1W", "1M": "1M", "1Y": "1Y", "3Y": "3Y", "Max": "ALL"}
+period_labels = t['chart_periods'] if 'chart_periods' in t else ["1W", "1M", "1Y", "3Y", "Max"]
+selected_label = st.radio("Period", period_labels, horizontal=True)
+
+# Map label back to code
+selected_period = "1M" # Default
+for label, code in zip(period_labels, ["1W", "1M", "1Y", "3Y", "Max"]):
+    if selected_label == label:
+        selected_period = code
+        break
+
+from utils import DataManager
+import plotly.express as px
+
+history_df = DataManager.load_history()
+if not history_df.empty:
+    filtered_df = DataManager.filter_history(history_df, selected_period)
+    if not filtered_df.empty:
+        fig = px.line(filtered_df, x="timestamp", y=["bullion_sell", "ornament_sell"],
+                     title=t['chart_bullion'],
+                     labels={"value": "THB", "timestamp": "Time", "variable": "Type"})
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("No data for the selected period.")
+else:
+    st.info("Collecting data...")
+
+# --- 4. UNIT CONVERTER (Weight Only) ---
+st.divider()
+st.subheader(f"⚖️ {t['unit_converter']}")
+
+u_col1, u_col2, u_col3 = st.columns(3)
+
+# Session state to handle mutual updates
+if 'u_baht' not in st.session_state: st.session_state.u_baht = 1.0
+
+def update_from_baht():
+    b = st.session_state.u_baht
+    st.session_state.u_gram = b * 15.244
+    st.session_state.u_oz = st.session_state.u_gram / 31.1035
+
+def update_from_gram():
+    g = st.session_state.u_gram
+    st.session_state.u_baht = g / 15.244
+    st.session_state.u_oz = g / 31.1035
+
+def update_from_oz():
+    oz = st.session_state.u_oz
+    st.session_state.u_gram = oz * 31.1035
+    st.session_state.u_baht = st.session_state.u_gram / 15.244
+
+# Initialize others
+if 'u_gram' not in st.session_state: update_from_baht()
+
+with u_col1:
+    st.number_input(t['baht'], key="u_baht", on_change=update_from_baht, step=0.1)
+with u_col2:
+    st.number_input(t['gram'], key="u_gram", on_change=update_from_gram, step=1.0)
+with u_col3:
+    st.number_input(t['ounce'], key="u_oz", on_change=update_from_oz, step=0.1)
+
+# --- 5. SPONSOR MODULE ---
+st.divider()
+st.markdown(f"""
+<div style="text-align: center; color: #888; border-top: 1px solid #eee; padding-top: 20px;">
+    <h4>{t['sponsor_title']}</h4>
+    <p style="font-size: 0.9em;">{t['sponsor_desc']}</p>
+</div>
+""", unsafe_allow_html=True)
+
+s_col1, s_col2 = st.columns(2)
+with s_col1:
+    st.write(f"💳 **{t['sponsor_alipay']}**")
+    # Placeholder for actual QR code image
+    st.image("https://via.placeholder.com/200?text=Alipay+QR", caption=t['sponsor_msg'])
+with s_col2:
+    st.write(f"📲 **{t['sponsor_promptpay']}**")
+    st.image("https://via.placeholder.com/200?text=PromptPay+QR", caption=t['sponsor_msg'])
+
+st.markdown(f"<div style='text-align: center; color: #bbb; font-size: 0.8em;'>{t['sponsor_msg']}</div>", unsafe_allow_html=True)

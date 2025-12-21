@@ -1,0 +1,7 @@
+*.pyc
+__pycache__/
+.streamlit/
+gold_history.csv
+.env
+venv/
+.DS_Store
