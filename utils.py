@@ -70,6 +70,49 @@ class ThaiGoldScraper:
             print(f"SuperRich API error: {e}")
             return {"buy": 4.48, "sell": 4.52}
 
+    @staticmethod
+    def get_history_from_gta():
+        """Scrapes historical price updates from GTA website."""
+        url = "https://www.goldtraders.or.th/UpdatePriceList.aspx"
+        try:
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            table = soup.select_one("#DetailPlace_MainGridView")
+            if not table:
+                return []
+            
+            rows = table.find_all('tr')
+            history_data = []
+            # Skip header rows (usually first 2-3 are headers)
+            for row in rows:
+                cols = row.find_all('td')
+                if len(cols) >= 6:
+                    raw_time = cols[0].get_text().strip()
+                    # Example raw_time: "19/12/2568 16:43"
+                    try:
+                        # Extract basic numbers
+                        b_buy = float(re.sub(r'[^\d.]', '', cols[2].get_text()))
+                        b_sell = float(re.sub(r'[^\d.]', '', cols[3].get_text()))
+                        o_buy = float(re.sub(r'[^\d.]', '', cols[4].get_text()))
+                        o_sell = float(re.sub(r'[^\d.]', '', cols[5].get_text()))
+                        
+                        # Convert Thai Buddhist year to Gregorian if needed for plot (usually +543)
+                        # But for now, just store as string or attempt parse
+                        history_data.append({
+                            "timestamp": raw_time,
+                            "bullion_buy": b_buy,
+                            "bullion_sell": b_sell,
+                            "tax_base": o_buy,
+                            "ornament_sell": o_sell
+                        })
+                    except:
+                        continue
+            return history_data
+        except Exception as e:
+            print(f"GTA History Scraping error: {e}")
+            return []
+
 class GoldConverter:
     # 1 Baht (Bullion) = 15.244 g
     # 1 Baht (Ornament) = 15.16 g
@@ -145,6 +188,39 @@ class DataManager:
         elif period == "3Y":
             return df[df['timestamp'] > now - timedelta(days=365*3)]
         return df # Default: Max/All
+
+    @staticmethod
+    def get_combined_history():
+        """Loads local history and prepends/appends live history from GTA."""
+        local_df = DataManager.load_history()
+        # Scrape live history for the day
+        live_history = ThaiGoldScraper.get_history_from_gta()
+        if not live_history:
+            return local_df
+        
+        live_df = pd.DataFrame(live_history)
+        
+        # Parse timestamps (Handle BE year 2568 -> 2025)
+        def parse_thai_time(t_str):
+            try:
+                # 19/12/2568 16:43
+                d, m, y_h = t_str.split(' ')
+                day, month, year = d.split('/')
+                # Convert 2568 to 2025
+                year = str(int(year) - 543)
+                return pd.to_datetime(f"{day}/{month}/{year} {y_h}", dayfirst=True)
+            except:
+                return pd.to_datetime(t_str, errors='coerce')
+
+        live_df['timestamp'] = live_df['timestamp'].apply(parse_thai_time)
+        live_df = live_df.dropna(subset=['timestamp'])
+        
+        if local_df.empty:
+            return live_df
+        
+        # Combine and remove duplicates
+        combined = pd.concat([local_df, live_df]).drop_duplicates(subset=['timestamp']).sort_values('timestamp')
+        return combined
 
 class AlertManager:
     @staticmethod

@@ -131,7 +131,7 @@ t = LANGS[lang_code]
 # --- 0. MAIN HEADER ---
 st.markdown(f"""
 <div style="text-align: center; padding: 10px; border-bottom: 2px solid #ffd700; margin-bottom: 20px;">
-    <h1 style="color: #d4af37; margin: 0;">🏆 {t['main_title']} <span style='font-size: 0.5em; color: #ccc;'>v1.1</span></h1>
+    <h1 style="color: #d4af37; margin: 0;">🏆 {t['main_title']}</h1>
     <p style="color: #888; margin: 0; font-size: 0.9em;">Real-time Gold & Currency Monitor</p>
 </div>
 """, unsafe_allow_html=True)
@@ -235,29 +235,23 @@ for label, code in zip(period_labels, ["1W", "1M", "1Y", "3Y", "Max"]):
 from utils import DataManager
 import plotly.express as px
 
-history_df = DataManager.load_history()
+history_df = DataManager.get_combined_history()
 if not history_df.empty:
     history_df = history_df.sort_values("timestamp")
     filtered_df = DataManager.filter_history(history_df, selected_period)
     
-    st.write(f"📊 {t['charts']} Data Points: {len(filtered_df)}")
-    
     if not filtered_df.empty:
-        if len(filtered_df) < 2:
-            st.info("💡 历史趋势需要至少两个数据点。请连点 2-3 次 [🔄 Refresh Data] 按钮。")
-            st.dataframe(filtered_df.tail(5)) # Show recent data
-        else:
-            fig = px.line(filtered_df, x="timestamp", y=["bullion_sell", "ornament_sell"],
-                         title=t['chart_bullion'],
-                         labels={"value": "THB", "timestamp": "Time", "variable": "Type"})
-            st.plotly_chart(fig, use_container_width=True)
-            
-            with st.expander("📄 View Raw History Data"):
-                st.dataframe(filtered_df.sort_values("timestamp", ascending=False))
+        fig = px.line(filtered_df, x="timestamp", y=["bullion_sell", "ornament_sell"],
+                     title=t['chart_bullion'],
+                     labels={"value": "THB", "timestamp": "Time", "variable": "Type"})
+        st.plotly_chart(fig, use_container_width=True)
+        
+        with st.expander("📄 View Raw History Data"):
+            st.dataframe(filtered_df.sort_values("timestamp", ascending=False))
     else:
         st.warning(f"⚠️ 该时段（{selected_label}）暂无数据。")
 else:
-    st.info("🕒 正在收集历史数据... 请点击上方按钮开始记录。")
+    st.info("🕒 正在收集历史数据...")
 
 # --- 4. UNIT CONVERTER (Weight Only) ---
 st.divider()
