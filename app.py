@@ -160,7 +160,7 @@ rate_col1, rate_col2, rate_col3 = st.columns(3)
 
 with rate_col1:
     # RMB/THB first, no SuperRich labels
-    st.metric(t['rmb_thb'], f"{ex_rates['buy']:.4f}")
+    st.metric(t['rmb_thb'], f"{ex_rates['buy']:.2f}")
 with rate_col2:
     # Display Thai Bullion Sell instead of Gold Spot
     val = prices['bullion_sell'] if prices else 0
@@ -207,7 +207,19 @@ else:
 
 # --- 3. CHARTS WITH PERIOD SELECTOR ---
 st.divider()
-st.subheader(f"📈 {t['charts']}")
+col_h, col_r = st.columns([4, 1])
+with col_h:
+    st.subheader(f"📈 {t['charts']}")
+with col_r:
+    if st.button("🔄 Refresh Data", type="primary"):
+        # Force a refresh and save
+        new_data = ThaiGoldScraper.get_latest_prices()
+        if new_data:
+            from utils import DataManager
+            DataManager.save_snapshot(new_data)
+            st.success("Snapshot saved!")
+            time.sleep(1)
+            st.rerun()
 
 period_map = {"1W": "1W", "1M": "1M", "1Y": "1Y", "3Y": "3Y", "Max": "ALL"}
 period_labels = t['chart_periods'] if 'chart_periods' in t else ["1W", "1M", "1Y", "3Y", "Max"]
@@ -230,13 +242,16 @@ if not history_df.empty:
     
     if not filtered_df.empty:
         if len(filtered_df) < 2:
-            st.info("💡 历史趋势需要至少两个数据点。请稍后刷新或等待更多更新。")
+            st.info("💡 历史趋势需要至少两个数据点。请点击右上角的 **Refresh Data** 刷新几次。")
             st.dataframe(filtered_df) # Show data if only one point
         else:
             fig = px.line(filtered_df, x="timestamp", y=["bullion_sell", "ornament_sell"],
                          title=t['chart_bullion'],
                          labels={"value": "THB", "timestamp": "Time", "variable": "Type"})
             st.plotly_chart(fig, use_container_width=True)
+            
+            with st.expander("📄 View Raw History Data"):
+                st.dataframe(filtered_df)
     else:
         st.warning(f"⚠️ 该时段（{selected_label}）暂无数据。")
 else:
