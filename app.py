@@ -29,10 +29,12 @@ LANGS = {
         "gram": "กรัม (Gram)",
         "ounce": "ออนซ์ (Ounce)",
         "main_title": "ราคาทองคำประเทศไทย (Thai Gold Live)",
-        "charts": "กราฟราคา",
-        "chart_periods": ["1W", "1M", "1Y", "3Y", "Max"],
-        "chart_bullion": "แนวโน้มราคาทอง",
-        "chart_ornament": "แนวโน้มทองรูปพรรณ",
+        "investment_calc": "คำนวณผลกำไร/ขาดทุน",
+        "buy_price": "ราคาที่ซื้อ (ต่อบาท)",
+        "buy_amount": "จำนวนที่ซื้อ (บาท)",
+        "current_value": "มูลค่าปัจจุบัน",
+        "profit_loss": "กำไร/ขาดทุน",
+        "return_rate": "อัตราผลตอบแทน",
         "alerts": "แจ้งเตือนราคา",
         "alert_set": "ตั้งค่า",
         "sponsor_title": "☕ สนับสนุน",
@@ -61,10 +63,12 @@ LANGS = {
         "gram": "克 (Gram)",
         "ounce": "盎司 (Ounce)",
         "main_title": "泰国黄金 (Thai Gold Live)",
-        "charts": "历史走势",
-        "chart_periods": ["一周", "一月", "一年", "三年", "全部"],
-        "chart_bullion": "价格趋势",
-        "chart_ornament": "金饰趋势",
+        "investment_calc": "投资盈亏计算器",
+        "buy_price": "买入单价 (每铢)",
+        "buy_amount": "买入数量 (铢)",
+        "current_value": "当前市值",
+        "profit_loss": "盈亏金额",
+        "return_rate": "收益率",
         "alerts": "价格预警",
         "alert_set": "设置",
         "sponsor_title": "☕ 赞助作者",
@@ -93,10 +97,12 @@ LANGS = {
         "gram": "Gram",
         "ounce": "Ounce",
         "main_title": "Thai Gold Live",
-        "charts": "Trends",
-        "chart_periods": ["1W", "1M", "1Y", "3Y", "Max"],
-        "chart_bullion": "Bullion Trend",
-        "chart_ornament": "Ornament Trend",
+        "investment_calc": "Investment P&L Calc",
+        "buy_price": "Purchase Price (per Baht)",
+        "buy_amount": "Amount (Baht)",
+        "current_value": "Current Value",
+        "profit_loss": "Profit/Loss",
+        "return_rate": "Return Rate",
         "alerts": "Alerts",
         "alert_set": "Set",
         "sponsor_title": "☕ Support",
@@ -205,53 +211,62 @@ if prices:
 else:
     st.error("Failed to fetch prices.")
 
-# --- 3. CHARTS WITH PERIOD SELECTOR ---
+# --- 3. GOLD INVESTMENT CALCULATOR (P&L) ---
 st.divider()
-col_h, col_r = st.columns([4, 1])
-with col_h:
-    st.subheader(f"📈 {t['charts']}")
-with col_r:
-    if st.button("🔄 Refresh Data", type="primary"):
-        # Force a refresh and save
-        new_data = ThaiGoldScraper.get_latest_prices()
-        if new_data:
-            from utils import DataManager
-            DataManager.save_snapshot(new_data)
-            st.success("Snapshot saved!")
-            time.sleep(1)
-            st.rerun()
+st.subheader(f"📈 {t['investment_calc']}")
 
-period_map = {"1W": "1W", "1M": "1M", "1Y": "1Y", "3Y": "3Y", "Max": "ALL"}
-period_labels = t['chart_periods'] if 'chart_periods' in t else ["1W", "1M", "1Y", "3Y", "Max"]
-selected_label = st.radio("Period", period_labels, horizontal=True)
+with st.expander("💼 Calculator Settings", expanded=True):
+    inv_col1, inv_col2, inv_col3 = st.columns(3)
+    with inv_col1:
+        inv_type = st.radio("Type", [t['bullion'], t['ornament']], horizontal=True, key="inv_type")
+    with inv_col2:
+        buy_price = st.number_input(t['buy_price'], min_value=0.0, value=64000.0, step=100.0)
+    with inv_col3:
+        buy_amount = st.number_input(t['buy_amount'], min_value=0.0, value=1.0, step=1.0)
 
-# Map label back to code
-selected_period = "1M" # Default
-for label, code in zip(period_labels, ["1W", "1M", "1Y", "3Y", "Max"]):
-    if selected_label == label:
-        selected_period = code
-        break
-
-from utils import DataManager
-import plotly.express as px
-
-history_df = DataManager.get_combined_history()
-if not history_df.empty:
-    history_df = history_df.sort_values("timestamp")
-    filtered_df = DataManager.filter_history(history_df, selected_period)
+if prices:
+    current_price = prices['bullion_sell'] if inv_type == t['bullion'] else prices['ornament_sell']
+    total_cost = buy_price * buy_amount
+    current_val = current_price * buy_amount
+    pnl = current_val - total_cost
+    roi = (pnl / total_cost * 100) if total_cost > 0 else 0
     
-    if not filtered_df.empty:
-        fig = px.line(filtered_df, x="timestamp", y=["bullion_sell", "ornament_sell"],
-                     title=t['chart_bullion'],
-                     labels={"value": "THB", "timestamp": "Time", "variable": "Type"})
-        st.plotly_chart(fig, use_container_width=True)
-        
-        with st.expander("📄 View Raw History Data"):
-            st.dataframe(filtered_df.sort_values("timestamp", ascending=False))
+    res_col1, res_col2, res_col3 = st.columns(3)
+    res_col1.metric(t['current_value'], f"{current_val:,.0f} THB")
+    res_col2.metric(t['profit_loss'], f"{pnl:,.0f} THB", delta=f"{pnl:,.0f}")
+    res_col3.metric(t['return_rate'], f"{roi:.2f}%", delta=f"{roi:.2f}%")
+
+# --- 3.5 [NEW] PRICE ALERTS ---
+st.divider()
+st.subheader(f"🔔 {t['alerts']}")
+
+@st.cache_resource
+def get_alert_manager():
+    from utils import AlertManager
+    return AlertManager()
+
+alerts_col1, alerts_col2, alerts_col3 = st.columns([2, 1, 1])
+with alerts_col1:
+    target_price = st.number_input(f"Target {t['bullion']} Price", min_value=0, value=65000, step=100)
+with alerts_col2:
+    condition = st.selectbox("Condition", ["Above", "Below"])
+with alerts_col3:
+    if st.button(t['alert_set'], use_container_width=True):
+        st.session_state.active_alert = {"target": target_price, "cond": condition}
+        st.success("Alert set!")
+
+if "active_alert" in st.session_state:
+    alert = st.session_state.active_alert
+    current = prices['bullion_sell'] if prices else 0
+    triggered = False
+    if alert['cond'] == "Above" and current >= alert['target']: triggered = True
+    if alert['cond'] == "Below" and current <= alert['target']: triggered = True
+    
+    if triggered:
+        st.toast(f"🚨 ALERT! Price is {alert['cond']} {alert['target']}!", icon="🔥")
+        st.error(f"🎯 PRICE ALERT REACHED: {current:,.0f} {alert['cond']} {alert['target']:,.0f}")
     else:
-        st.warning(f"⚠️ 该时段（{selected_label}）暂无数据。")
-else:
-    st.info("🕒 正在收集历史数据...")
+        st.info(f"⏳ Monitoring: Bullion {current:,.0f} vs Target {alert['target']:,.0f}")
 
 # --- 4. UNIT CONVERTER (Weight Only) ---
 st.divider()
