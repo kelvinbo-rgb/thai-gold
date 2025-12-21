@@ -58,8 +58,8 @@ LANGS = {
         "title": "泰国黄金实时报价",
         "bullion": "金条",
         "ornament": "金饰/首饰",
-        "buy": "买首", # Tax base/Buy
-        "sell": "卖出",
+        "buy": "买入价",
+        "sell": "卖出价",
         "converter": "计算器",
         "weight_baht": "重量 (Baht)",
         "gamnuy": "加工费 (Gamnuy)",
@@ -203,7 +203,7 @@ with rate_col1:
 with rate_col2:
     # Display Thai Bullion Sell instead of Gold Spot
     val = prices['bullion_sell'] if prices else 0
-    st.metric(f"{t['bullion']} {t['sell']}", f"{val:,.0f}")
+    st.metric(f"{t['bullion']}({t['sell']})", f"{val:,.0f}")
 with rate_col3:
     # THB/USD cleaned up
     st.metric(t['thb_usd'], "34.50")
