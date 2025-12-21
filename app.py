@@ -30,13 +30,24 @@ LANGS = {
         "ounce": "ออนซ์ (Ounce)",
         "main_title": "ราคาทองคำประเทศไทย (Thai Gold Live)",
         "investment_calc": "คำนวณผลกำไร/ขาดทุน",
+        "buy_date": "วันที่ซื้อ",
         "buy_price": "ราคาที่ซื้อ (ต่อบาท)",
         "buy_amount": "จำนวนที่ซื้อ (บาท)",
         "current_value": "มูลค่าปัจจุบัน",
         "profit_loss": "กำไร/ขาดทุน",
         "return_rate": "อัตราผลตอบแทน",
+        "annual_return": "อัตราผลตอบแทนต่อปี",
+        "calc_settings": "ตั้งค่าการคำนวณ",
+        "gold_type": "ประเภททอง",
         "alerts": "แจ้งเตือนราคา",
+        "alert_target": "เป้าหมายราคาทองคำแท่ง",
+        "alert_cond": "เงื่อนไข",
+        "alert_above": "สูงกว่า",
+        "alert_below": "ต่ำกว่า",
+        "alert_reached": "🎯 บรรลุเป้าหมายราคาแล้ว!",
+        "alert_monitoring": "⏳ กำลังติดตาม",
         "alert_set": "ตั้งค่า",
+        "set_confirm": "ตั้งค่าแจ้งเตือนแล้ว!",
         "sponsor_title": "☕ สนับสนุน",
         "sponsor_desc": "หากคุณชอบแนวคิดนี้ คุณสามารถสนับสนุนได้!",
         "sponsor_alipay": "Alipay (จีน)",
@@ -64,13 +75,24 @@ LANGS = {
         "ounce": "盎司 (Ounce)",
         "main_title": "泰国黄金 (Thai Gold Live)",
         "investment_calc": "投资盈亏计算器",
+        "buy_date": "买入日期",
         "buy_price": "买入单价 (每铢)",
         "buy_amount": "买入数量 (铢)",
         "current_value": "当前市值",
         "profit_loss": "盈亏金额",
-        "return_rate": "收益率",
+        "return_rate": "累计收益率",
+        "annual_return": "年化收益率",
+        "calc_settings": "计算设置",
+        "gold_type": "黄金类型",
         "alerts": "价格预警",
-        "alert_set": "设置",
+        "alert_target": "目标金条价格",
+        "alert_cond": "触发条件",
+        "alert_above": "高于",
+        "alert_below": "低于",
+        "alert_reached": "🎯 已达到目标价格!",
+        "alert_monitoring": "⏳ 正在监控",
+        "alert_set": "设定",
+        "set_confirm": "预警设定成功!",
         "sponsor_title": "☕ 赞助作者",
         "sponsor_desc": "如果您的思路多了一点提示，请给我一点赞助，我会更有动力去更新和分享。",
         "sponsor_alipay": "中国支付宝",
@@ -98,13 +120,24 @@ LANGS = {
         "ounce": "Ounce",
         "main_title": "Thai Gold Live",
         "investment_calc": "Investment P&L Calc",
+        "buy_date": "Purchase Date",
         "buy_price": "Purchase Price (per Baht)",
         "buy_amount": "Amount (Baht)",
         "current_value": "Current Value",
         "profit_loss": "Profit/Loss",
         "return_rate": "Return Rate",
-        "alerts": "Alerts",
+        "annual_return": "Annual ROI",
+        "calc_settings": "Calculator Settings",
+        "gold_type": "Gold Type",
+        "alerts": "Price Alerts",
+        "alert_target": "Target Bullion Price",
+        "alert_cond": "Condition",
+        "alert_above": "Above",
+        "alert_below": "Below",
+        "alert_reached": "🎯 Price Alert Reached!",
+        "alert_monitoring": "⏳ Monitoring",
         "alert_set": "Set",
+        "set_confirm": "Alert set successfully!",
         "sponsor_title": "☕ Support",
         "sponsor_desc": "If you find this useful and want to support continued development.",
         "sponsor_alipay": "Alipay (CN)",
@@ -215,14 +248,16 @@ else:
 st.divider()
 st.subheader(f"📈 {t['investment_calc']}")
 
-with st.expander("💼 Calculator Settings", expanded=True):
-    inv_col1, inv_col2, inv_col3 = st.columns(3)
-    with inv_col1:
-        inv_type = st.radio("Type", [t['bullion'], t['ornament']], horizontal=True, key="inv_type")
-    with inv_col2:
-        buy_price = st.number_input(t['buy_price'], min_value=0.0, value=64000.0, step=100.0)
-    with inv_col3:
-        buy_amount = st.number_input(t['buy_amount'], min_value=0.0, value=1.0, step=1.0)
+st.markdown(f"**💼 {t['calc_settings']}**")
+inv_col1, inv_col2, inv_col3, inv_col4 = st.columns(4)
+with inv_col1:
+    inv_type = st.radio(t['gold_type'], [t['bullion'], t['ornament']], horizontal=True, key="inv_type")
+with inv_col2:
+    buy_date = st.date_input(t['buy_date'], value=pd.to_datetime("today") - pd.Timedelta(days=30))
+with inv_col3:
+    buy_price = st.number_input(t['buy_price'], min_value=0.0, value=64000.0, step=100.0)
+with inv_col4:
+    buy_amount = st.number_input(t['buy_amount'], min_value=0.0, value=1.0, step=1.0)
 
 if prices:
     current_price = prices['bullion_sell'] if inv_type == t['bullion'] else prices['ornament_sell']
@@ -231,10 +266,18 @@ if prices:
     pnl = current_val - total_cost
     roi = (pnl / total_cost * 100) if total_cost > 0 else 0
     
-    res_col1, res_col2, res_col3 = st.columns(3)
+    # Calculate Annualized ROI
+    today = pd.to_datetime("today").normalize()
+    b_date = pd.to_datetime(buy_date).normalize()
+    days_diff = (today - b_date).days
+    if days_diff <= 0: days_diff = 1
+    annual_roi = ((1 + roi/100)**(365/days_diff) - 1) * 100
+    
+    res_col1, res_col2, res_col3, res_col4 = st.columns(4)
     res_col1.metric(t['current_value'], f"{current_val:,.0f} THB")
     res_col2.metric(t['profit_loss'], f"{pnl:,.0f} THB", delta=f"{pnl:,.0f}")
     res_col3.metric(t['return_rate'], f"{roi:.2f}%", delta=f"{roi:.2f}%")
+    res_col4.metric(t['annual_return'], f"{annual_roi:.2f}%")
 
 # --- 3.5 [NEW] PRICE ALERTS ---
 st.divider()
@@ -247,26 +290,26 @@ def get_alert_manager():
 
 alerts_col1, alerts_col2, alerts_col3 = st.columns([2, 1, 1])
 with alerts_col1:
-    target_price = st.number_input(f"Target {t['bullion']} Price", min_value=0, value=65000, step=100)
+    target_price = st.number_input(t['alert_target'], min_value=0, value=65000, step=100)
 with alerts_col2:
-    condition = st.selectbox("Condition", ["Above", "Below"])
+    condition = st.selectbox(t['alert_cond'], [t['alert_above'], t['alert_below']])
 with alerts_col3:
     if st.button(t['alert_set'], use_container_width=True):
         st.session_state.active_alert = {"target": target_price, "cond": condition}
-        st.success("Alert set!")
+        st.success(t['set_confirm'])
 
 if "active_alert" in st.session_state:
     alert = st.session_state.active_alert
     current = prices['bullion_sell'] if prices else 0
     triggered = False
-    if alert['cond'] == "Above" and current >= alert['target']: triggered = True
-    if alert['cond'] == "Below" and current <= alert['target']: triggered = True
+    if alert['cond'] == t['alert_above'] and current >= alert['target']: triggered = True
+    if alert['cond'] == t['alert_below'] and current <= alert['target']: triggered = True
     
     if triggered:
-        st.toast(f"🚨 ALERT! Price is {alert['cond']} {alert['target']}!", icon="🔥")
-        st.error(f"🎯 PRICE ALERT REACHED: {current:,.0f} {alert['cond']} {alert['target']:,.0f}")
+        st.toast(f"{t['alert_reached']} {current:,.0f} {alert['cond']} {alert['target']:,.0f}", icon="🔥")
+        st.error(f"{t['alert_reached']}: {current:,.0f} {alert['cond']} {alert['target']:,.0f}")
     else:
-        st.info(f"⏳ Monitoring: Bullion {current:,.0f} vs Target {alert['target']:,.0f}")
+        st.info(f"{t['alert_monitoring']}: {t['bullion']} {current:,.0f} vs {t['alert_target']} {alert['target']:,.0f}")
 
 # --- 4. UNIT CONVERTER (Weight Only) ---
 st.divider()
@@ -326,3 +369,12 @@ with s_col2:
         st.image("https://via.placeholder.com/200?text=PromptPay+QR", caption=t['sponsor_msg'])
 
 st.markdown(f"<div style='text-align: center; color: #bbb; font-size: 0.8em;'>{t['sponsor_msg']}</div>", unsafe_allow_html=True)
+
+# --- 6. FOOTER ---
+st.divider()
+st.markdown(f"""
+<div style="text-align: center; color: #888; padding: 20px;">
+    <p>📧 Contact: <a href="mailto:kelvinbo@gmail.com" style="color: #d4af37;">kelvinbo@gmail.com</a></p>
+    <p>© 2025 Thai Gold Live - Your Premium Gold Companion</p>
+</div>
+""", unsafe_allow_html=True)
