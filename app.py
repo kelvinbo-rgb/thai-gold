@@ -131,7 +131,7 @@ t = LANGS[lang_code]
 # --- 0. MAIN HEADER ---
 st.markdown(f"""
 <div style="text-align: center; padding: 10px; border-bottom: 2px solid #ffd700; margin-bottom: 20px;">
-    <h1 style="color: #d4af37; margin: 0;">🏆 {t['main_title']}</h1>
+    <h1 style="color: #d4af37; margin: 0;">🏆 {t['main_title']} <span style='font-size: 0.5em; color: #ccc;'>v1.1</span></h1>
     <p style="color: #888; margin: 0; font-size: 0.9em;">Real-time Gold & Currency Monitor</p>
 </div>
 """, unsafe_allow_html=True)
@@ -240,10 +240,12 @@ if not history_df.empty:
     history_df = history_df.sort_values("timestamp")
     filtered_df = DataManager.filter_history(history_df, selected_period)
     
+    st.write(f"📊 {t['charts']} Data Points: {len(filtered_df)}")
+    
     if not filtered_df.empty:
         if len(filtered_df) < 2:
-            st.info("💡 历史趋势需要至少两个数据点。请点击右上角的 **Refresh Data** 刷新几次。")
-            st.dataframe(filtered_df) # Show data if only one point
+            st.info("💡 历史趋势需要至少两个数据点。请连点 2-3 次 [🔄 Refresh Data] 按钮。")
+            st.dataframe(filtered_df.tail(5)) # Show recent data
         else:
             fig = px.line(filtered_df, x="timestamp", y=["bullion_sell", "ornament_sell"],
                          title=t['chart_bullion'],
@@ -251,11 +253,11 @@ if not history_df.empty:
             st.plotly_chart(fig, use_container_width=True)
             
             with st.expander("📄 View Raw History Data"):
-                st.dataframe(filtered_df)
+                st.dataframe(filtered_df.sort_values("timestamp", ascending=False))
     else:
         st.warning(f"⚠️ 该时段（{selected_label}）暂无数据。")
 else:
-    st.info("🕒 正在收集历史数据... 价格走势将在几次更新后显示。")
+    st.info("🕒 正在收集历史数据... 请点击上方按钮开始记录。")
 
 # --- 4. UNIT CONVERTER (Weight Only) ---
 st.divider()
