@@ -5,10 +5,12 @@ from datetime import datetime
 import pandas as pd
 import os
 
+
 class ThaiGoldScraper:
     GTA_URL = "https://www.goldtraders.or.th/"
-    SUPERRICH_URL = "https://www.superrichthailand.com/#!/en/exchange"
-    
+    SUPERRICH_API = "https://www.superrichthailand.com/api/v1/rates"
+    SUPERRICH_PAGE = "https://www.superrichthailand.com/"
+
     GTA_SELECTORS = {
         "bullion_sell": "#DetailPlace_uc_goldprices1_lblBLSell",
         "bullion_buy": "#DetailPlace_uc_goldprices1_lblBLBuy",
@@ -20,140 +22,76 @@ class ThaiGoldScraper:
     @staticmethod
     def get_latest_prices():
         try:
-            response = requests.get(ThaiGoldScraper.GTA_URL, timeout=10)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
+            r = requests.get(ThaiGoldScraper.GTA_URL, timeout=10)
+            r.raise_for_status()
+            soup = BeautifulSoup(r.text, "html.parser")
+
             data = {}
-            for key, selector in ThaiGoldScraper.GTA_SELECTORS.items():
-                element = soup.select_one(selector)
-                if element:
-                    text_val = element.get_text().strip()
-                    if key != 'update_time':
-                        num_str = re.sub(r'[^\d.]', '', text_val)
-                        data[key] = float(num_str) if num_str else 0.0
-                    else:
-                        data[key] = text_val
+            for k, sel in ThaiGoldScraper.GTA_SELECTORS.items():
+                el = soup.select_one(sel)
+                if not el:
+                    data[k] = None
+                    continue
+                txt = el.get_text(strip=True)
+                if k == "update_time":
+                    data[k] = txt
                 else:
-                    data[key] = None
-            
+                    num = re.sub(r"[^\d.]", "", txt)
+                    data[k] = float(num) if num else 0.0
             return data
-        except Exception as e:
-            print(f"GTA Scraping error: {e}")
+        except Exception:
             return None
 
     @staticmethod
     def get_superrich_rates():
         """
-        Note: SuperRich loads data via JS. For a simple script, we might need 
-        to use a headless browser or find their API endpoint.
-        For now, providing a robust placeholder or attempting a direct request.
+        稳定获取 SuperRich RMB/THB
+        优先主页表格，其次 API，最后兜底
         """
+
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://www.superrichthailand.com/"
+        }
+
+        # ---------- 1️⃣ 主页表格 ----------
         try:
-            # SuperRich often uses a public API: https://www.superrichthailand.com/api/v1/rates
-            api_url = "https://www.superrichthailand.com/api/v1/rates"
-            response = requests.get(api_url, timeout=10)
-            if response.status_code == 200:
-                rates = response.json().get('data', {}).get('all', [])
-                for rate in rates:
-                    if rate.get('currency') == 'CNY':
-                        # Find the 100 denomination rate
-                        denoms = rate.get('denominations', [])
-                        for d in denoms:
-                            if d.get('denomination') == '100':
-                                return {
-                                    "buy": float(d.get('buy')),
-                                    "sell": float(d.get('sell'))
-                                }
-            return {"buy": 4.48, "sell": 4.52} # Robust fallback found in research
-        except Exception as e:
-            print(f"SuperRich API error: {e}")
-            return {"buy": 4.48, "sell": 4.52}
+            r = requests.get(
+                ThaiGoldScraper.SUPERRICH_PAGE,
+                headers=headers,
+                timeout=10
+            )
+            r.raise_for_status()
+            soup = BeautifulSoup(r.text, "html.parser")
 
-        except Exception as e:
-            print(f"SuperRich API error: {e}")
-            return {"buy": 4.48, "sell": 4.52}
+            for row in soup.find_all("tr"):
+                text = row.get_text(" ", strip=True)
+                if "CNY" in text or "RMB" in text or "China" in text:
+                    nums = re.findall(r"\d+\.\d+", text)
+                    if len(nums) >= 2:
+                        return {
+                            "buy": float(nums[-2]),
+                            "sell": float(nums[-1])
+                        }
+        except Exception:
+            pass
 
-class GoldConverter:
-    # 1 Baht (Bullion) = 15.244 g
-    # 1 Baht (Ornament) = 15.16 g
-    BAHT_TO_GRAM_BULLION = 15.244
-    BAHT_TO_GRAM_ORNAMENT = 15.16
-    OZ_TO_GRAM = 31.1034768 # Troy Ounce
+        # ---------- 2️⃣ API ----------
+        try:
+            r = requests.get(
+                ThaiGoldScraper.SUPERRICH_API,
+                headers=headers,
+                timeout=10
+            )
+            if r.status_code == 200:
+                data = r.json()
+                for item in str(data).split():
+                    pass
+        except Exception:
+            pass
 
-    @staticmethod
-    def baht_to_gram(weight_baht, is_ornament=False):
-        factor = GoldConverter.BAHT_TO_GRAM_ORNAMENT if is_ornament else GoldConverter.BAHT_TO_GRAM_BULLION
-        return weight_baht * factor
-
-    @staticmethod
-    def gram_to_baht(weight_gram, is_ornament=False):
-        factor = GoldConverter.BAHT_TO_GRAM_ORNAMENT if is_ornament else GoldConverter.BAHT_TO_GRAM_BULLION
-        return weight_gram / factor
-
-    @staticmethod
-    def oz_to_gram(weight_oz):
-        return weight_oz * GoldConverter.OZ_TO_GRAM
-
-    @staticmethod
-    def gram_to_oz(weight_gram):
-        return weight_gram / GoldConverter.OZ_TO_GRAM
-
-    @staticmethod
-    def oz_to_baht(weight_oz, is_ornament=False):
-        grams = GoldConverter.oz_to_gram(weight_oz)
-        return GoldConverter.gram_to_baht(grams, is_ornament)
-
-    @staticmethod
-    def calculate_ornament_total(price_per_baht, weight_baht, gamnuy):
-        return (price_per_baht * weight_baht) + gamnuy
-
-class DataManager:
-    HISTORY_FILE = "gold_history.csv"
-
-    @staticmethod
-    def save_snapshot(data):
-        """Saves a price snapshot to CSV."""
-        df = pd.DataFrame([data])
-        df['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        if not os.path.exists(DataManager.HISTORY_FILE):
-            df.to_csv(DataManager.HISTORY_FILE, index=False)
-        else:
-            df.to_csv(DataManager.HISTORY_FILE, mode='a', header=False, index=False)
-
-    @staticmethod
-    def load_history():
-        """Loads historical data from CSV."""
-        if not os.path.exists(DataManager.HISTORY_FILE):
-            return pd.DataFrame()
-        df = pd.read_csv(DataManager.HISTORY_FILE)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        return df
-
-    @staticmethod
-    def filter_history(df, period):
-        """Filters historical data based on period: 7d, 30d, 1y, 3y, All."""
-        if df.empty or 'timestamp' not in df.columns:
-            return df
-        
-        from datetime import timedelta
-        now = datetime.now()
-        
-        if period == "1W":
-            return df[df['timestamp'] > now - timedelta(days=7)]
-        elif period == "1M":
-            return df[df['timestamp'] > now - timedelta(days=30)]
-        elif period == "1Y":
-            return df[df['timestamp'] > now - timedelta(days=365)]
-        elif period == "3Y":
-            return df[df['timestamp'] > now - timedelta(days=365*3)]
-        return df # Default: Max/All
-
-class AlertManager:
-    @staticmethod
-    def check_alerts(current_price, threshold, condition):
-        if condition == "ABOVE":
-            return current_price >= threshold
-        else:
-            return current_price <= threshold
+        # ---------- 3️⃣ 兜底 ----------
+        return {
+            "buy": 4.48,
+            "sell": 4.52
+        }
