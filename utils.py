@@ -7,7 +7,10 @@ import os
 
 class ThaiGoldScraper:
     GTA_URL = "https://www.goldtraders.or.th/"
-    SUPERRICH_URL = "https://www.superrichthailand.com/#!/en/exchange"
+    # 增加 User-Agent 伪装成浏览器
+    HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
     
     GTA_SELECTORS = {
         "bullion_sell": "#DetailPlace_uc_goldprices1_lblBLSell",
@@ -20,7 +23,8 @@ class ThaiGoldScraper:
     @staticmethod
     def get_latest_prices():
         try:
-            response = requests.get(ThaiGoldScraper.GTA_URL, timeout=10)
+            # 加上 headers
+            response = requests.get(ThaiGoldScraper.GTA_URL, headers=ThaiGoldScraper.HEADERS, timeout=10)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             
@@ -45,14 +49,13 @@ class ThaiGoldScraper:
     @staticmethod
     def get_superrich_rates():
         """
-        Note: SuperRich loads data via JS. For a simple script, we might need 
-        to use a headless browser or find their API endpoint.
-        For now, providing a robust placeholder or attempting a direct request.
+        Fixed: Added User-Agent headers to bypass security blocks.
         """
         try:
-            # SuperRich often uses a public API: https://www.superrichthailand.com/api/v1/rates
             api_url = "https://www.superrichthailand.com/api/v1/rates"
-            response = requests.get(api_url, timeout=10)
+            # 关键修改：添加 headers 伪装
+            response = requests.get(api_url, headers=ThaiGoldScraper.HEADERS, timeout=10)
+            
             if response.status_code == 200:
                 rates = response.json().get('data', {}).get('all', [])
                 for rate in rates:
@@ -61,18 +64,22 @@ class ThaiGoldScraper:
                         denoms = rate.get('denominations', [])
                         for d in denoms:
                             if d.get('denomination') == '100':
+                                buy_rate = float(d.get('buy'))
+                                sell_rate = float(d.get('sell'))
+                                # 如果抓取成功，打印一下日志 (在Streamlit后台可见)
+                                print(f"SuperRich Success: Buy {buy_rate} / Sell {sell_rate}")
                                 return {
-                                    "buy": float(d.get('buy')),
-                                    "sell": float(d.get('sell'))
+                                    "buy": buy_rate,
+                                    "sell": sell_rate
                                 }
-            return {"buy": 4.48, "sell": 4.52} # Robust fallback found in research
+            else:
+                print(f"SuperRich API returned status code: {response.status_code}")
+                
+            return {"buy": 4.48, "sell": 4.52} # Fallback
         except Exception as e:
             print(f"SuperRich API error: {e}")
             return {"buy": 4.48, "sell": 4.52}
 
-        except Exception as e:
-            print(f"SuperRich API error: {e}")
-            return {"buy": 4.48, "sell": 4.52}
 
 class GoldConverter:
     # 1 Baht (Bullion) = 15.244 g
@@ -157,3 +164,4 @@ class AlertManager:
             return current_price >= threshold
         else:
             return current_price <= threshold
+            
