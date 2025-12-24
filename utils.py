@@ -4,6 +4,9 @@ import re
 from datetime import datetime
 import pandas as pd
 import os
+import logging
+
+logging.basicConfig(level=logging.ERROR)
 
 
 class ThaiGoldScraper:
@@ -44,11 +47,6 @@ class ThaiGoldScraper:
 
     @staticmethod
     def get_superrich_rates():
-        """
-        稳定获取 SuperRich RMB/THB
-        优先主页表格，其次 API，最后兜底
-        """
-
         headers = {
             "User-Agent": "Mozilla/5.0",
             "Referer": "https://www.superrichthailand.com/"
@@ -66,7 +64,7 @@ class ThaiGoldScraper:
 
             for row in soup.find_all("tr"):
                 text = row.get_text(" ", strip=True)
-                if "CNY" in text or "RMB" in text or "China" in text:
+                if "CNY" in text or "RMB" in text or "China" in text or "人民币" in text:
                     nums = re.findall(r"\d+\.\d+", text)
                     if len(nums) >= 2:
                         return {
@@ -76,7 +74,7 @@ class ThaiGoldScraper:
         except Exception:
             pass
 
-        # ---------- 2️⃣ API ----------
+        # ---------- 2️⃣ API（备用） ----------
         try:
             r = requests.get(
                 ThaiGoldScraper.SUPERRICH_API,
@@ -85,13 +83,62 @@ class ThaiGoldScraper:
             )
             if r.status_code == 200:
                 data = r.json()
-                for item in str(data).split():
-                    pass
+                txt = str(data).upper()
+                if "CNY" in txt or "RMB" in txt:
+                    nums = re.findall(r"\d+\.\d+", txt)
+                    if len(nums) >= 2:
+                        return {
+                            "buy": float(nums[0]),
+                            "sell": float(nums[1])
+                        }
         except Exception:
             pass
 
         # ---------- 3️⃣ 兜底 ----------
-        return {
-            "buy": 4.48,
-            "sell": 4.52
-        }
+        return {"buy": 4.48, "sell": 4.52}
+
+
+# ✅ 这个类【必须存在】，否则 app.py 会直接 ImportError
+class GoldConverter:
+    BAHT_TO_GRAM_BULLION = 15.244
+    BAHT_TO_GRAM_ORNAMENT = 15.16
+    OZ_TO_GRAM = 31.1034768
+
+    @staticmethod
+    def baht_to_gram(weight_baht, is_ornament=False):
+        factor = (
+            GoldConverter.BAHT_TO_GRAM_ORNAMENT
+            if is_ornament
+            else GoldConverter.BAHT_TO_GRAM_BULLION
+        )
+        return weight_baht * factor
+
+    @staticmethod
+    def gram_to_baht(weight_gram, is_ornament=False):
+        factor = (
+            GoldConverter.BAHT_TO_GRAM_ORNAMENT
+            if is_ornament
+            else GoldConverter.BAHT_TO_GRAM_BULLION
+        )
+        return weight_gram / factor
+
+
+class DataManager:
+    HISTORY_FILE = "gold_history.csv"
+
+    @staticmethod
+    def save_snapshot(data):
+        try:
+            df = pd.DataFrame([data])
+            df["timestamp"] = datetime.now()
+            if not os.path.exists(DataManager.HISTORY_FILE):
+                df.to_csv(DataManager.HISTORY_FILE, index=False)
+            else:
+                df.to_csv(
+                    DataManager.HISTORY_FILE,
+                    mode="a",
+                    header=False,
+                    index=False
+                )
+        except Exception:
+            pass
