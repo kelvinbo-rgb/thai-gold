@@ -52,7 +52,8 @@ LANGS = {
         "sponsor_desc": "หากคุณชอบแนวคิดนี้ คุณสามารถสนับสนุนได้!",
         "sponsor_alipay": "Alipay (จีน)",
         "sponsor_promptpay": "PromptPay (ไทย)",
-        "sponsor_msg": "ขอให้โชคดีทุกความฝันครับ"
+        "sponsor_msg": "ขอให้โชคดีทุกความฝันครับ",
+        "refresh_data": "รีเฟรชข้อมูล"
     },
     "CN": {
         "title": "泰国黄金实时报价",
@@ -97,7 +98,8 @@ LANGS = {
         "sponsor_desc": "如果您的思路多了一点提示，请给我一点赞助，我会更有动力去更新和分享。",
         "sponsor_alipay": "中国支付宝",
         "sponsor_promptpay": "泰国收款码",
-        "sponsor_msg": "祝终有一日你我梦想成真"
+        "sponsor_msg": "祝终有一日你我梦想成真",
+        "refresh_data": "强制刷新数据"
     },
     "EN": {
         "title": "Thai Gold Real-time",
@@ -142,7 +144,8 @@ LANGS = {
         "sponsor_desc": "If you find this useful and want to support continued development.",
         "sponsor_alipay": "Alipay (CN)",
         "sponsor_promptpay": "PromptPay (TH)",
-        "sponsor_msg": "May your dreams come true."
+        "sponsor_msg": "May your dreams come true.",
+        "refresh_data": "Force Refresh"
     }
 }
 
@@ -175,7 +178,13 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# st.title(f"💰 {t['title']}") # Removed old title
+# --- SIDEBAR / UTILS ---
+# Add a force refresh button in the sidebar or top
+with st.sidebar:
+    st.write(f"⚙️ **{t['calc_settings']}**")
+    if st.button(f"🔄 {t['refresh_data']}", type="primary"):
+        st.cache_data.clear()
+        st.rerun()
 
 # --- 1. EXCHANGE RATES - TOP BAR ---
 @st.cache_data(ttl=600)
@@ -184,7 +193,7 @@ def fetch_ex_rates():
 
 ex_rates = fetch_ex_rates()
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=120) # 2 minutes for gold price
 def fetch_gold_data():
     data = ThaiGoldScraper.get_latest_prices()
     if data:
@@ -198,10 +207,11 @@ st.subheader(f"🌍 {t['exchange_rates']}")
 rate_col1, rate_col2, rate_col3 = st.columns(3)
 
 with rate_col1:
-    # RMB/THB first, no SuperRich labels
-    st.metric(t['rmb_thb'], f"{ex_rates['buy']:.2f}")
+    # RMB/THB
+    val = ex_rates.get('buy', 0)
+    st.metric(t['rmb_thb'], f"{val:.2f}")
 with rate_col2:
-    # Display Thai Bullion Sell instead of Gold Spot
+    # Display Thai Bullion Sell
     val = prices['bullion_sell'] if prices else 0
     st.metric(f"{t['bullion']}({t['sell']})", f"{val:,.0f}")
 with rate_col3:
@@ -378,3 +388,4 @@ st.markdown(f"""
     <p>© 2025 Thai Gold Live - Your Premium Gold Companion</p>
 </div>
 """, unsafe_allow_html=True)
+        
