@@ -1,39 +1,49 @@
 import streamlit as st
-import pandas as pd
-from utils import ThaiGoldScraper, GoldConverter, DataManager, AlertManager
-import time
-import os
+from utils import ThaiGoldScraper
 
-# Page Config
-st.set_page_config(page_title="Thailand Gold - 泰国黄金", layout="wide")
+st.set_page_config(page_title="Thai Gold", layout="wide")
 
-# (这里保留你原本完整的 LANGS 字典，内容太多我不再重复粘贴)
-# ... 
+@st.cache_data(ttl=120)
+def fetch_ex_rates():
+    return ThaiGoldScraper.get_superrich_rates()
 
-# --- DATA FETCHING ---
-@st.cache_data(ttl=300) # 5分钟缓存
-def fetch_data():
-    prices = ThaiGoldScraper.get_latest_prices()
-    rates = ThaiGoldScraper.get_superrich_rates()
-    return prices, rates
+@st.cache_data(ttl=60)
+def fetch_gold_prices():
+    return ThaiGoldScraper.get_latest_prices()
 
-prices, rates = fetch_data()
+ex_rates = fetch_ex_rates() or {"buy": 4.48, "sell": 4.52}
+prices = fetch_gold_prices()
 
-# 自动保存历史
-if prices:
-    DataManager.save_snapshot(prices)
-
-# UI 渲染 (按照你原来的布局)
 st.title("🏆 Thai Gold Live")
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("CNY/THB (Bank of China)", f"{rates['buy']}")
-with col2:
-    if prices:
-        st.metric("Gold Bullion Sell", f"{prices['bullion_sell']:,.0f}")
-with col3:
-    if prices:
-        st.caption(f"Last Update: {prices['update_time']}")
+# ---- 汇率 ----
+st.subheader("🌍 汇率")
+st.metric("RMB / THB（买入）", f"{ex_rates['buy']:.4f}")
 
-# ... (后面接你原有的计算器、历史图表、SPONSOR 模块)
+st.divider()
+
+# ---- 金价 ----
+if prices:
+    c1, c2 = st.columns(2)
+    with c1:
+        st.metric(
+            "金条 卖出",
+            f"{prices['bullion_sell']:,.0f} THB"
+        )
+        st.metric(
+            "金条 买入",
+            f"{prices['bullion_buy']:,.0f} THB"
+        )
+    with c2:
+        st.metric(
+            "首饰 卖出",
+            f"{prices['ornament_sell']:,.0f} THB"
+        )
+        st.metric(
+            "首饰 回购",
+            f"{prices['tax_base']:,.0f} THB"
+        )
+
+    st.caption(f"更新时间：{prices['update_time']}")
+else:
+    st.error("无法获取金价数据")
