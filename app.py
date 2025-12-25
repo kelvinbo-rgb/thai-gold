@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import ThaiGoldScraper, GoldConverter, SuperRichCalibrator
+from utils import ThaiGoldScraper, GoldConverter
 import time
 import os
 
@@ -152,32 +152,15 @@ if "lang_choice" not in st.session_state:
 
 c_l, lc1, lc2, lc3 = st.columns([2, 1, 1, 1])
 with lc1:
-    if st.button(
-        "🇨🇳 中文",
-        key="lang_cn_btn",
-        use_container_width=True,
-        type="primary" if st.session_state.lang_choice == "CN" else "secondary"
-    ):
+    if st.button("🇨🇳 中文", use_container_width=True, type="primary" if st.session_state.lang_choice == "CN" else "secondary"):
         st.session_state.lang_choice = "CN"
         st.rerun()
-
 with lc2:
-    if st.button(
-        "🇹🇭 ไทย",
-        key="lang_th_btn",
-        use_container_width=True,
-        type="primary" if st.session_state.lang_choice == "TH" else "secondary"
-    ):
+    if st.button("🇹🇭 ไทย", use_container_width=True, type="primary" if st.session_state.lang_choice == "TH" else "secondary"):
         st.session_state.lang_choice = "TH"
         st.rerun()
-
 with lc3:
-    if st.button(
-        "🇺🇸 EN",
-        key="lang_en_btn",
-        use_container_width=True,
-        type="primary" if st.session_state.lang_choice == "EN" else "secondary"
-    ):
+    if st.button("🇺🇸 EN", use_container_width=True, type="primary" if st.session_state.lang_choice == "EN" else "secondary"):
         st.session_state.lang_choice = "EN"
         st.rerun()
 
@@ -395,33 +378,3 @@ st.markdown(f"""
     <p>© 2025 Thai Gold Live - Your Premium Gold Companion</p>
 </div>
 """, unsafe_allow_html=True)
-# =====================================================
-# 🔧 Hidden Admin Calibration (?admin=1)
-# =====================================================
-if st.query_params.get("admin") == "1":
-    st.divider()
-    st.subheader("🔧 SuperRich 管理员校准")
-
-    from utils import SuperRichCalibrator
-
-    current = ex_rates["buy"]
-
-    real_sr = st.number_input(
-        "输入当前 SuperRich 实际买入价",
-        step=0.05,
-        value=current
-    )
-
-    if st.button("📌 校准", type="primary"):
-        bot_now = GoldConverter.get_rmb_thb_bot()   # ✅ 关键修复
-        offset = SuperRichCalibrator.save(real_sr, bot_now)
-
-        st.success(
-            f"✅ 校准完成\n\n"
-            f"BOT 汇率: {bot_now:.4f}\n"
-            f"SuperRich: {real_sr:.2f}\n"
-            f"偏移量: {offset:+.4f}"
-        )
-
-        st.toast("已校准，刷新页面即可生效", icon="✅")
-
