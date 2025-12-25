@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import streamlit as st
 import pandas as pd
 from utils import ThaiGoldScraper, GoldConverter, SuperRichCalibrator
@@ -399,7 +398,6 @@ if st.query_params.get("admin") == "1":
         st.success(
             f"校准完成｜BOT={bot_now:.4f}｜SuperRich={real_sr:.2f}｜Offset={offset:+.4f}"
         )
-=======
 import streamlit as st
 import pandas as pd
 from utils import ThaiGoldScraper, GoldConverter
@@ -780,4 +778,3 @@ st.markdown(f"""
     <p>© 2025 Thai Gold Live - Your Premium Gold Companion</p>
 </div>
 """, unsafe_allow_html=True)
->>>>>>> 199feb6c6f9e2e4c01bd04ec8bef6916e3869615
