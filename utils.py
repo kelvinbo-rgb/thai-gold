@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # utils.py
 import requests
 import json
@@ -123,7 +122,6 @@ class DataManager:
 class AlertManager:
     def __init__(self):
         self.alerts = []
-=======
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -283,4 +281,3 @@ class AlertManager:
             return current_price >= threshold
         else:
             return current_price <= threshold
->>>>>>> 199feb6c6f9e2e4c01bd04ec8bef6916e3869615
