@@ -152,15 +152,32 @@ if "lang_choice" not in st.session_state:
 
 c_l, lc1, lc2, lc3 = st.columns([2, 1, 1, 1])
 with lc1:
-    if st.button("🇨🇳 中文", use_container_width=True, type="primary" if st.session_state.lang_choice == "CN" else "secondary"):
+    if st.button(
+        "🇨🇳 中文",
+        key="lang_cn_btn",
+        use_container_width=True,
+        type="primary" if st.session_state.lang_choice == "CN" else "secondary"
+    ):
         st.session_state.lang_choice = "CN"
         st.rerun()
+
 with lc2:
-    if st.button("🇹🇭 ไทย", use_container_width=True, type="primary" if st.session_state.lang_choice == "TH" else "secondary"):
+    if st.button(
+        "🇹🇭 ไทย",
+        key="lang_th_btn",
+        use_container_width=True,
+        type="primary" if st.session_state.lang_choice == "TH" else "secondary"
+    ):
         st.session_state.lang_choice = "TH"
         st.rerun()
+
 with lc3:
-    if st.button("🇺🇸 EN", use_container_width=True, type="primary" if st.session_state.lang_choice == "EN" else "secondary"):
+    if st.button(
+        "🇺🇸 EN",
+        key="lang_en_btn",
+        use_container_width=True,
+        type="primary" if st.session_state.lang_choice == "EN" else "secondary"
+    ):
         st.session_state.lang_choice = "EN"
         st.rerun()
 
