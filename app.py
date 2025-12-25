@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from utils import ThaiGoldScraper, GoldConverter
+from utils import ThaiGoldScraper, GoldConverter, SuperRichCalibrator
 import time
 import os
 
@@ -378,3 +378,23 @@ st.markdown(f"""
     <p>© 2025 Thai Gold Live - Your Premium Gold Companion</p>
 </div>
 """, unsafe_allow_html=True)
+# =====================================================
+# 🔧 Hidden Admin Calibration (?admin=1)
+# =====================================================
+if st.query_params.get("admin") == "1":
+    st.divider()
+    st.subheader("🔧 SuperRich 管理员校准")
+
+    current = ex_rates["buy"]
+    real_sr = st.number_input(
+        "输入当前 SuperRich 实际买入价",
+        step=0.05,
+        value=current
+    )
+
+    if st.button("📌 校准", type="primary"):
+        bot_now = ThaiGoldScraper.get_rmb_thb_bot()
+        offset = SuperRichCalibrator.save(real_sr, bot_now)
+        st.success(
+            f"校准完成｜BOT={bot_now:.4f}｜SuperRich={real_sr:.2f}｜Offset={offset:+.4f}"
+        )
