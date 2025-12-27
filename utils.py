@@ -45,34 +45,77 @@ class ThaiGoldScraper:
     @staticmethod
     def get_superrich_rates():
         """
-        Note: SuperRich loads data via JS. For a simple script, we might need 
-        to use a headless browser or find their API endpoint.
-        For now, providing a robust placeholder or attempting a direct request.
+        Legacy method kept for compatibility, now redirects to RateManager.
         """
-        try:
-            # SuperRich often uses a public API: https://www.superrichthailand.com/api/v1/rates
-            api_url = "https://www.superrichthailand.com/api/v1/rates"
-            response = requests.get(api_url, timeout=10)
-            if response.status_code == 200:
-                rates = response.json().get('data', {}).get('all', [])
-                for rate in rates:
-                    if rate.get('currency') == 'CNY':
-                        # Find the 100 denomination rate
-                        denoms = rate.get('denominations', [])
-                        for d in denoms:
-                            if d.get('denomination') == '100':
-                                return {
-                                    "buy": float(d.get('buy')),
-                                    "sell": float(d.get('sell'))
-                                }
-            return {"buy": 4.48, "sell": 4.52} # Robust fallback found in research
-        except Exception as e:
-            print(f"SuperRich API error: {e}")
-            return {"buy": 4.48, "sell": 4.52}
+        return RateManager.get_final_rates()
 
+class RateManager:
+    CONFIG_FILE = "rate_config.json"
+    BASE_API_URL = "https://open.er-api.com/v6/latest/CNY"
+    
+    @staticmethod
+    def get_base_rate():
+        """Fetches the official CNY -> THB rate from a stable open API."""
+        try:
+            resp = requests.get(RateManager.BASE_API_URL, timeout=5)
+            data = resp.json()
+            # 1 CNY = X THB
+            return float(data['rates']['THB'])
         except Exception as e:
-            print(f"SuperRich API error: {e}")
-            return {"buy": 4.48, "sell": 4.52}
+            print(f"Base Rate Error: {e}")
+            return 4.50 # Fallback
+
+    @staticmethod
+    def load_config():
+        """Loads the manual offset from local config."""
+        if not os.path.exists(RateManager.CONFIG_FILE):
+            return {"offset": 0.0}
+        try:
+            import json
+            with open(RateManager.CONFIG_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return {"offset": 0.0}
+
+    @staticmethod
+    def save_offset(real_superrich_price):
+        """Calculates and saves the offset based on manual input."""
+        base = RateManager.get_base_rate()
+        offset = real_superrich_price - base
+        
+        import json
+        with open(RateManager.CONFIG_FILE, 'w') as f:
+            json.dump({"offset": offset, "last_calibrated_base": base, "manual_price": real_superrich_price}, f)
+        return offset
+
+    @staticmethod
+    def get_final_rates():
+        """
+        Returns the final calculated rates:
+        1. Fetch Base Rate (CNY->THB)
+        2. Apply Offset
+        3. Round to nearest 0.05
+        4. Calculate Reverse (THB->CNY) = Buy Rate + 0.20
+        """
+        base = RateManager.get_base_rate()
+        config = RateManager.load_config()
+        offset = config.get("offset", 0.0)
+        
+        raw_buy = base + offset
+        
+        # Rounding rule: Nearest 0.05 (e.g. 4.48 -> 4.50, 4.42 -> 4.40)
+        # Logic: round(x * 20) / 20
+        final_buy = round(raw_buy * 20) / 20
+        
+        # Reverse Rate logic: Buy Rate + 0.20 (e.g. 4.50 + 0.20 = 4.70)
+        final_sell = final_buy + 0.20
+        
+        return {
+            "buy": final_buy,  # The "SuperRich" Anchor
+            "sell": final_sell, # The Reverse Rate
+            "base_ref": base,
+            "is_calibrated": True
+        }
 
 class GoldConverter:
     # 1 Baht (Bullion) = 15.244 g

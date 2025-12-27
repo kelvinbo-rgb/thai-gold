@@ -1,11 +1,39 @@
 import streamlit as st
 import pandas as pd
-from utils import ThaiGoldScraper, GoldConverter
+from utils import ThaiGoldScraper, GoldConverter, RateManager
 import time
 import os
 
 # Page Config
 st.set_page_config(page_title="Thailand Gold - 泰国黄金", layout="wide")
+
+# --- ADMIN CALIBRATION ---
+try:
+    # Compatible with newer Streamlit versions
+    qp = st.query_params
+    admin_code = qp.get("admin") if hasattr(qp, "get") else qp.get("admin", [None])[0]
+    
+    if admin_code == "1a":
+        with st.expander("🔧 Calibrate Exchange Rate (Admin)", expanded=True):
+            st.warning("⚠️ Manual Calibration Mode")
+            current_rates = RateManager.get_final_rates()
+            base_rate = current_rates.get('base_ref', 0)
+            st.write(f"**Base Rate (Open API):** `{base_rate:.4f}`")
+            
+            # Input for Real SuperRich Price
+            # We use the current calibrated 'buy' as default
+            new_val = st.number_input("Enter Real SuperRich CNY Buying Price:", 
+                                     value=float(current_rates['buy']), 
+                                     step=0.01,
+                                     format="%.2f")
+            
+            if st.button("💾 Save Calibration"):
+                offset = RateManager.save_offset(new_val)
+                st.toast(f"Calibrated! Offset: {offset:.4f}", icon="✅")
+                time.sleep(1)
+                st.rerun()
+except Exception as e:
+    st.error(f"Admin Error: {e}")
 
 # Localization
 LANGS = {
