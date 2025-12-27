@@ -1,11 +1,20 @@
 import streamlit as st
 import pandas as pd
-from utils import ThaiGoldScraper, GoldConverter, RateManager
+from utils import ThaiGoldScraper, GoldConverter, RateManager, QRGenerator
 import time
 import os
 
 # Page Config
-st.set_page_config(page_title="Thailand Gold - 泰国黄金", layout="wide")
+st.set_page_config(
+    page_title="泰金 Thai Gold ราคาทองคำ",
+    page_icon="🥇",
+    layout="wide",
+    menu_items={
+        'Get Help': 'https://github.com/kelvinbo/thai-gold',
+        'Report a bug': "mailto:kelvinbo@gmail.com",
+        'About': "# Thai Gold Price Monitor 🇹🇭\nReal-time exchange rates and gold prices."
+    }
+)
 
 # --- ADMIN CALIBRATION ---
 try:
@@ -195,15 +204,62 @@ with lc3:
 lang_code = st.session_state.lang_choice
 t = LANGS[lang_code]
 
-# --- 0. MAIN HEADER ---
+# --- NAVIGATION ---
+# Determine page structure based on query param or sidebar selection
+# Mobile-friendly: Use st.query_params to share specific views if needed, but for now simple tab usage.
+page_options = {
+    "dashboard": f"📊 {t['main_title']}",
+    "share": "🔗 Share / Promotion"
+}
+
+# Sidebar Navigation
+with st.sidebar:
+    st.header("Navigation")
+    page_selection = st.radio("Go to:", list(page_options.keys()), format_func=lambda x: page_options[x], label_visibility="collapsed")
+    st.divider()
+    st.caption(f"© 2025 Thai Gold Live")
+
+if page_selection == "share":
+    st.title("🔗 Share / Promotion")
+    st.markdown("---")
+    
+    # Define URLs
+    gold_url = "https://thai-gold-marjfazaj6s7kkvvbqrj6g.streamlit.app/"
+    lottery_url = "https://thai-lottery-predictor-pbh3eacsmrwe9n73mew8w2.streamlit.app/"
+    
+    share_col1, share_col2 = st.columns(2)
+    
+    with share_col1:
+        st.info("🥇 泰国黄金 / ทองคำไทย / Thai Gold")
+        st.image(QRGenerator.generate(gold_url), width=200)
+        st.code(gold_url, language=None)
+        if st.button("Open Gold App ↗️"):
+            st.link_button("Go to App", gold_url)
+
+    with share_col2:
+        st.success("🎰 泰国彩票 / ล๊อตเตอรี่ไทย / Thai Lottery")
+        st.image(QRGenerator.generate(lottery_url), width=200)
+        st.code(lottery_url, language=None)
+        if st.button("Open Lottery App ↗️"):
+            st.link_button("Go to App", lottery_url)
+
+    st.markdown("---")
+    st.markdown("""
+    #### 💡 AI-powered design
+    - **Free forever / 永久免费 / ฟรีตลอดไป**
+    - **Welcome to bookmark / 欢迎收藏使用 / ยินดีให้บันทึก**
+    """)
+    st.image("https://img.shields.io/badge/AI-Powered-blue?style=for-the-badge&logo=openai", width=150)
+
+    st.stop() # Stop execution here so the dashboard doesn't load below
+
+# --- 0. MAIN HEADER (Dashboard) ---
 st.markdown(f"""
 <div style="text-align: center; padding: 10px; border-bottom: 2px solid #ffd700; margin-bottom: 20px;">
     <h1 style="color: #d4af37; margin: 0;">🏆 {t['main_title']}</h1>
     <p style="color: #888; margin: 0; font-size: 0.9em;">Real-time Gold & Currency Monitor</p>
 </div>
 """, unsafe_allow_html=True)
-
-# st.title(f"💰 {t['title']}") # Removed old title
 
 # --- 1. EXCHANGE RATES - TOP BAR ---
 @st.cache_data(ttl=600)
