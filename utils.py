@@ -215,5 +215,5 @@ class QRGenerator:
         qr.add_data(url)
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
-        return img
+        return img.convert('RGB')
 
