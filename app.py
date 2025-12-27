@@ -386,15 +386,15 @@ s_col1, s_col2 = st.columns(2)
 with s_col1:
     st.write(f"💳 **{t['sponsor_alipay']}**")
     if os.path.exists("qr_alipay.jpg"):
-        st.image("qr_alipay.jpg", caption=t['sponsor_msg'])
+        st.image("qr_alipay.jpg", width=200)
     else:
-        st.image("https://via.placeholder.com/200?text=Alipay+QR", caption=t['sponsor_msg'])
+        st.image("https://via.placeholder.com/200?text=Alipay+QR", width=200)
 with s_col2:
     st.write(f"📲 **{t['sponsor_promptpay']}**")
     if os.path.exists("qr_promptpay.jpg"):
-        st.image("qr_promptpay.jpg", caption=t['sponsor_msg'])
+        st.image("qr_promptpay.jpg", width=200)
     else:
-        st.image("https://via.placeholder.com/200?text=PromptPay+QR", caption=t['sponsor_msg'])
+        st.image("https://via.placeholder.com/200?text=PromptPay+QR", width=200)
 
 st.markdown(f"<div style='text-align: center; color: #bbb; font-size: 0.8em;'>{t['sponsor_msg']}</div>", unsafe_allow_html=True)
 
