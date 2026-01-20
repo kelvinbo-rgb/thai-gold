@@ -234,11 +234,12 @@ rate_col1, rate_col2, rate_col3 = st.columns(3)
 
 with rate_col1:
     # RMB/THB first, no SuperRich labels
-    st.metric(t['rmb_thb'], f"{ex_rates['buy']:.2f}")
+    buy_rate = ex_rates.get('buy')
+    st.metric(t['rmb_thb'], f"{buy_rate:.2f}" if buy_rate is not None else "0.00")
 with rate_col2:
     # Display Thai Bullion Sell instead of Gold Spot
-    val = prices['bullion_sell'] if prices else 0
-    st.metric(f"{t['bullion']}({t['sell']})", f"{val:,.0f}")
+    val = prices.get('bullion_sell') if prices else None
+    st.metric(f"{t['bullion']}({t['sell']})", f"{val:,.0f}" if val is not None else "0")
 with rate_col3:
     # THB/USD cleaned up
     st.metric(t['thb_usd'], "34.50")
@@ -253,26 +254,30 @@ if prices:
     
     with col1:
         st.info(f"🏆 {t['bullion']}")
-        st.metric(label=t['sell'], value=f"{prices['bullion_sell']:,.0f} THB")
-        st.metric(label=t['buy'], value=f"{prices['bullion_buy']:,.0f} THB")
+        b_sell = prices.get('bullion_sell')
+        b_buy = prices.get('bullion_buy')
+        st.metric(label=t['sell'], value=f"{b_sell:,.0f} THB" if b_sell is not None else "0 THB")
+        st.metric(label=t['buy'], value=f"{b_buy:,.0f} THB" if b_buy is not None else "0 THB")
         
         # Integrated Calculator for Bullion
         st.markdown(f"**🧮 {t['converter']}**")
         b_weight = st.number_input(f"{t['weight_baht']}", min_value=0.0, value=1.0, step=0.01, key="b_weight")
         b_gamnuy = st.number_input(f"{t['gamnuy']}", min_value=0, value=100, key="b_gamnuy")
-        b_total = (b_weight * prices['bullion_sell']) + b_gamnuy
+        b_total = (b_weight * (b_sell if b_sell is not None else 0)) + b_gamnuy
         st.write(f"👉 **{b_total:,.2f} THB**")
         
     with col2:
         st.warning(f"💍 {t['ornament']}")
-        st.metric(label=t['sell'], value=f"{prices['ornament_sell']:,.0f} THB")
-        st.metric(label=t['buy'], value=f"{prices['tax_base']:,.0f} THB")
+        o_sell = prices.get('ornament_sell')
+        o_buy = prices.get('tax_base')
+        st.metric(label=t['sell'], value=f"{o_sell:,.0f} THB" if o_sell is not None else "0 THB")
+        st.metric(label=t['buy'], value=f"{o_buy:,.0f} THB" if o_buy is not None else "0 THB")
         
         # Integrated Calculator for Ornaments
         st.markdown(f"**🧮 {t['converter']}**")
         o_weight = st.number_input(f"{t['weight_baht']}", min_value=0.0, value=1.0, step=0.01, key="o_weight")
         o_gamnuy = st.number_input(f"{t['gamnuy']}", min_value=0, value=500, key="o_gamnuy")
-        o_total = (o_weight * prices['ornament_sell']) + o_gamnuy
+        o_total = (o_weight * (o_sell if o_sell is not None else 0)) + o_gamnuy
         st.write(f"👉 **{o_total:,.2f} THB**")
     
     st.caption(f"🕒 {t['last_update']}: {prices['update_time']}")
@@ -295,7 +300,9 @@ with inv_col4:
     buy_amount = st.number_input(t['buy_amount'], min_value=0.0, value=1.0, step=1.0)
 
 if prices:
-    current_price = prices['bullion_sell'] if inv_type == t['bullion'] else prices['ornament_sell']
+    p_b_sell = prices.get('bullion_sell')
+    p_o_sell = prices.get('ornament_sell')
+    current_price = (p_b_sell if p_b_sell is not None else 0) if inv_type == t['bullion'] else (p_o_sell if p_o_sell is not None else 0)
     total_cost = buy_price * buy_amount
     current_val = current_price * buy_amount
     pnl = current_val - total_cost

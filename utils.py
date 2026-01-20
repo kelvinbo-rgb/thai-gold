@@ -6,7 +6,7 @@ import pandas as pd
 import os
 
 class ThaiGoldScraper:
-    GTA_URL = "https://www.goldtraders.or.th/"
+    GTA_URL = "https://classic.goldtraders.or.th/default.aspx"
     SUPERRICH_URL = "https://www.superrichthailand.com/#!/en/exchange"
     
     GTA_SELECTORS = {
