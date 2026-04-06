@@ -3,8 +3,48 @@ import pandas as pd
 from utils import ThaiGoldScraper, GoldConverter, RateManager
 import time
 import os
+import firebase_admin
+from firebase_admin import auth, firestore
 
-# Page Config
+# --- Firebase Zero-Key Initialization ---
+if not firebase_admin._apps:
+    firebase_admin.initialize_app() 
+db = firestore.client()
+
+# --- Bouncer: Streamlit URL Auth ---
+def check_subscription():
+    if st.session_state.get('authenticated'):
+        return True
+
+    # Get Token from URL: ?token=xxx
+    token = st.query_params.get("token")
+    if not token:
+        st.error("🚫 访问受限：请先通过门户登录。")
+        st.stop()
+
+    try:
+        decoded_token = auth.verify_id_token(token)
+        uid = decoded_token['uid']
+        
+        # Firestore Check (ID = UID, status = 'active')
+        user_ref = db.collection('subscribers').document(uid)
+        doc = user_ref.get()
+        
+        if doc.exists and doc.to_dict().get('status') == 'active':
+            st.session_state['authenticated'] = True
+            st.session_state['uid'] = uid
+            return True
+        else:
+            st.warning("💳 订阅已失效：请续费后继续使用。")
+            st.stop()
+    except Exception as e:
+        st.error(f"❌ 认证失败: {str(e)}")
+        st.stop()
+
+# Enforce subscription
+check_subscription()
+
+# --- Page Config ---
 st.set_page_config(
     page_title="泰金 Thai Gold ราคาทองคำ",
     page_icon="🥇",
