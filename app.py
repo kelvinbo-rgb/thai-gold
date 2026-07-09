@@ -233,7 +233,7 @@ LANGS = {
 
 # --- Language Selection (At Top for Mobile) ---
 if "lang_choice" not in st.session_state:
-    st.session_state.lang_choice = "CN"
+    st.session_state.lang_choice = "TH"
 
 c_l, lc1, lc2, lc3 = st.columns([2, 1, 1, 1])
 with lc1:
@@ -261,12 +261,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- 1. EXCHANGE RATES - TOP BAR ---
-@st.cache_data(ttl=600)
-def fetch_ex_rates():
-    return ThaiGoldScraper.get_superrich_rates()
-
-ex_rates = fetch_ex_rates()
-
 @st.cache_data(ttl=300)
 def fetch_gold_data():
     data = ThaiGoldScraper.get_latest_prices()
@@ -278,17 +272,13 @@ def fetch_gold_data():
 prices = fetch_gold_data()
 
 st.subheader(f"🌍 {t['exchange_rates']}")
-rate_col1, rate_col2, rate_col3 = st.columns(3)
+rate_col1, rate_col2 = st.columns(2)
 
 with rate_col1:
-    # RMB/THB first, no SuperRich labels
-    buy_rate = ex_rates.get('buy')
-    st.metric(t['rmb_thb'], f"{buy_rate:.2f}" if buy_rate is not None else "0.00")
-with rate_col2:
     # Display Thai Bullion Sell instead of Gold Spot
     val = prices.get('bullion_sell') if prices else None
     st.metric(f"{t['bullion']}({t['sell']})", f"{val:,.0f}" if val is not None else "0")
-with rate_col3:
+with rate_col2:
     # THB/USD cleaned up
     st.metric(t['thb_usd'], "34.50")
 
