@@ -29,12 +29,20 @@ def check_subscription():
         # Firestore Check (ID = UID, status = 'active')
         user_ref = db.collection('subscribers').document(uid)
         doc = user_ref.get()
+        user_data = doc.to_dict() if doc.exists else {}
         
-        if doc.exists and doc.to_dict().get('status') == 'active':
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        expires_at = user_data.get('expires_at')
+        is_expired = expires_at and (expires_at < now)
+        
+        if doc.exists and user_data.get('status') == 'active' and not is_expired:
             st.session_state['authenticated'] = True
             st.session_state['uid'] = uid
             return True
         else:
+            if doc.exists and user_data.get('status') == 'active' and is_expired:
+                user_ref.update({'status': 'expired'})
             st.warning("💳 订阅已失效：请续费后继续使用。")
             st.stop()
     except Exception as e:
